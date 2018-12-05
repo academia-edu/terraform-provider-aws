@@ -12,11 +12,14 @@ import (
 )
 
 func TestAccAWSSESEmailMailFrom_basic(t *testing.T) {
-	email := fmt.Sprintf(
+	domain := fmt.Sprintf(
 		"%s.terraformtesting.com",
 		acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum))
-	mailFromDomain1 := fmt.Sprintf("bounce1.%s", email)
-	mailFromDomain2 := fmt.Sprintf("bounce2.%s", email)
+	email := fmt.Sprintf(
+		"%s@%s",
+		acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum), domain)
+	mailFromDomain1 := fmt.Sprintf("bounce1.%s", domain)
+	mailFromDomain2 := fmt.Sprintf("bounce2.%s", domain)
 	resourceName := "aws_ses_email_mail_from.test"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -52,9 +55,12 @@ func TestAccAWSSESEmailMailFrom_basic(t *testing.T) {
 }
 
 func TestAccAWSSESEmailMailFrom_behaviorOnMxFailure(t *testing.T) {
-	email := fmt.Sprintf(
+	domain := fmt.Sprintf(
 		"%s.terraformtesting.com",
 		acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum))
+	email := fmt.Sprintf(
+		"%s@%s",
+		acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum), domain)
 	resourceName := "aws_ses_email_mail_from.test"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -63,14 +69,14 @@ func TestAccAWSSESEmailMailFrom_behaviorOnMxFailure(t *testing.T) {
 		CheckDestroy: testAccCheckSESEmailMailFromDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccAwsSESEmailMailFromConfig_behaviorOnMxFailure(email, ses.BehaviorOnMXFailureUseDefaultValue),
+				Config: testAccAwsSESEmailMailFromConfig_behaviorOnMxFailure(email, domain, ses.BehaviorOnMXFailureUseDefaultValue),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckAwsSESEmailMailFromExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "behavior_on_mx_failure", ses.BehaviorOnMXFailureUseDefaultValue),
 				),
 			},
 			{
-				Config: testAccAwsSESEmailMailFromConfig_behaviorOnMxFailure(email, ses.BehaviorOnMXFailureRejectMessage),
+				Config: testAccAwsSESEmailMailFromConfig_behaviorOnMxFailure(email, domain, ses.BehaviorOnMXFailureRejectMessage),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckAwsSESEmailMailFromExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "behavior_on_mx_failure", ses.BehaviorOnMXFailureRejectMessage),
@@ -155,8 +161,7 @@ resource "aws_ses_email_mail_from" "test" {
 `, email, mailFromDomain)
 }
 
-// TODO domain setting doesn't make sense, email identity not available on this branch
-func testAccAwsSESEmailMailFromConfig_behaviorOnMxFailure(email, behaviorOnMxFailure string) string {
+func testAccAwsSESEmailMailFromConfig_behaviorOnMxFailure(email, domain, behaviorOnMxFailure string) string {
 	return fmt.Sprintf(`
 resource "aws_ses_email_identity" "test" {
   email = "%s"
@@ -165,7 +170,7 @@ resource "aws_ses_email_identity" "test" {
 resource "aws_ses_email_mail_from" "test" {
   behavior_on_mx_failure = "%s"
   email                 = "${aws_ses_email_identity.test.email}"
-  mail_from_domain       = "bounce.${aws_ses_email_identity.test.email}"
+  mail_from_domain       = "bounce.%s"
 }
-`, email, behaviorOnMxFailure)
+`, email, behaviorOnMxFailure, domain)
 }
